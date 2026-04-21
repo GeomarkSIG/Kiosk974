@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiosque 974 - Correctif Expert</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #header-band { height: 150px; background: #2c3e50; display: flex; align-items: center; justify-content: center; position: relative; }
+        #header-band h1 { color: white; z-index: 2; letter-spacing: 5px; }
+        
+        #map { height: calc(100vh - 150px); background-color: #add8e6; }
+
+        /* L'ANIMATION SVG (C'est elle qui fait les vagues) */
+        @keyframes coastline-pulse {
+            0% { stroke-width: 2; stroke-opacity: 0.4; }
+            50% { stroke-width: 12; stroke-opacity: 0.1; }
+            100% { stroke-width: 2; stroke-opacity: 0.4; }
+        }
+
+        .wave-anim {
+            animation: coastline-pulse 3s infinite ease-in-out;
+            stroke: white !important;
+        }
+
+        .search-panel { background: white; padding: 10px; border-radius: 8px; display: flex; gap: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="header-band">
+    <h1>KIOSQUES 974</h1>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="Coastline.js"></script>
+<script src="donnees.js"></script>
+
+<script>
+    var map = L.map('map').setView([-21.115, 55.536], 10);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // FONCTION SPECIALE ANIMATION
+    function animateCoastline() {
+        if (typeof maCote !== 'undefined') {
+            L.geoJSON(maCote, {
+                style: function() {
+                    return { color: "white", weight: 2, opacity: 0.5 };
+                },
+                onEachFeature: function(feature, layer) {
+                    // On injecte l'animation une fois que le SVG est créé
+                    layer.on('add', function() {
+                        if (layer._path) {
+                            layer._path.classList.add('wave-anim');
+                        }
+                    });
+                }
+            }).addTo(map);
+            console.log("Animation de la côte chargée !");
+        } else {
+            console.error("Variable 'maCote' introuvable. Vérifiez Coastline.js");
+        }
+    }
+
+    // Lancement
+    window.onload = function() {
+        animateCoastline();
+        
+        if (typeof mesKiosques !== 'undefined') {
+            L.geoJSON(mesKiosques).addTo(map);
+        }
+    };
+
+    // RECHERCHE
+    var searchControl = L.control({position: 'topleft'});
+    searchControl.onAdd = function() {
+        var div = L.DomUtil.create('div', 'search-panel');
+        div.innerHTML = '<input type="text" id="p-in" placeholder="Ville..."><button onclick="rs()">OK</button>';
+        return div;
+    };
+    searchControl.addTo(map);
+
+    async function rs() {
+        var q = document.getElementById('p-in').value;
+        var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q} La Réunion`);
+        var d = await res.json();
+        if(d.length > 0) map.setView([d[0].lat, d[0].lon], 15);
+    }
+</script>
+</body>
+</html>
